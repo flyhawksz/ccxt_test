@@ -9,6 +9,18 @@ import ccxt
 import pandas as pd
 
 
+def make_pair(currencis):
+    currencis_pair = []
+    for i in range(len(currencis)):
+        for currency in currencis:
+            if currencis[i] == currency: continue
+
+        currencis_pair.append(currencis[i] + '/' + currency)
+
+    display_list(currencis_pair)
+    return currencis_pair
+
+
 def display_dic(obj):
     for i in obj.keys():
         print(i + ' - ', obj[i])
@@ -17,6 +29,10 @@ def display_dic(obj):
 def display_list(obj):
     for i in obj:
         print(i)
+
+good_coin = ['BTC', 'ETH', 'LTC', 'USD']
+good_exchange_name = ['bitfinex', 'bithumb', 'coinbase', 'coinex']
+
 
 print(ccxt.exchanges)
 
