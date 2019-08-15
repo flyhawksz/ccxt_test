@@ -24,7 +24,6 @@ class Price(object):
         return [self.exchange, self.timestamp, self.currency_pair, self.bid, self.ask, self.bidVolume, self.askVolume]
 
 
-
 def make_pair(currencis):
     currencis_pair = []
     for i in range(len(currencis)):
@@ -87,14 +86,16 @@ if __name__ == '__main__':
     price_matrix = []
     data = []
     test_currencies_pair = make_pair(good_currencies)
-    for exchange in good_exchanges:
-        print('------------------------' + exchange + '--------------------------')
-        data = pd.DataFrame(get_ticker(price_matrix, exchange, test_currencies_pair))
-        # print(data)
-        writer = pd.ExcelWriter('output_%s.xlsx' % datetime.date.today())
-        data.to_excel(writer, exchange, )
-        writer.save()
-        writer.close()
+    for i in range(len(good_exchanges)):
+        print('------------------------' + good_exchanges[i] + '--------------------------')
+        data.append(get_ticker(price_matrix, good_exchanges[i], test_currencies_pair))
+        # print(data[i])
+    df = pd.Dataframe(data)
+    # print(data)
+    writer = pd.ExcelWriter('output_%s.xlsx' % datetime.date.today())
+    df.to_excel(writer, 'all')
+    writer.save()
+    writer.close()
 
 
 
