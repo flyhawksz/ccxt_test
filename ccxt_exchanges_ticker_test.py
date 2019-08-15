@@ -7,6 +7,22 @@
 
 import ccxt
 import pandas as pd
+import time
+import datetime
+
+
+class Price(object):
+    exchange = ''
+    currency_pair = ''
+    timestamp = 0
+    bid = 0
+    ask = 0
+    bidVolume = 0
+    askVolume = 0
+
+    def get_price_array(self):
+        return [self.exchange, self.timestamp, self.currency_pair, self.bid, self.ask, self.bidVolume, self.askVolume]
+
 
 
 def make_pair(currencis):
@@ -16,14 +32,16 @@ def make_pair(currencis):
             if currencis[i] == currency: continue
             currencis_pair.append(currencis[i] + '/' + currency)
 
-    display_list(currencis_pair)
+    # display_list(currencis_pair)
     return currencis_pair
 
 
-def get_ticker(obj_exchange, currencies_pair):
+def get_ticker(price_matrix, obj_exchange, currencies_pair):
     _tickers = []
     _exchange = getattr(ccxt, obj_exchange)()
     if _exchange:
+        temp_price = Price()
+
         market = _exchange.load_markets()
         # display_dic(market)
         # print(market)
@@ -31,11 +49,22 @@ def get_ticker(obj_exchange, currencies_pair):
         # display_list(symbols)
         # print(symbols)
         for pair in currencies_pair:
+            temp_price.exchange = _exchange.name
+            temp_price.currency_pair = pair
+
             if pair in symbols:
-                _tickers.append(_exchange.fetch_ticker(pair))
+                _ticker = _exchange.fetch_ticker(pair)
+                temp_price.timestamp = _ticker['timestamp']
+                temp_price.bid = _ticker['bid']
+                temp_price.ask = _ticker['ask']
+                temp_price.bidVolume = _ticker['bidVolume']
+                temp_price.askVolume = _ticker['askVolume']
+                # _tickers.append(_ticker)
                 # display_dic(ticker)
                 # print(ticker)
-        return _tickers
+            price_matrix.append(temp_price.get_price_array())
+
+        return price_matrix
 
 
 def display_dic(obj):
@@ -49,16 +78,24 @@ def display_list(obj):
 
 
 good_currencies = ['BTC', 'ETH', 'LTC', 'USDT']
-good_exchanges = ['bitfinex', 'binance', 'okex']
+good_exchanges = ['bitfinex', 'binance', 'okex', 'poloniex', 'bittrex', 'bitstamp', 'gdax']
 
-display_list(ccxt.exchanges)
+
+# display_list(ccxt.exchanges)
 
 if __name__ == '__main__':
+    price_matrix = []
+    data = []
     test_currencies_pair = make_pair(good_currencies)
     for exchange in good_exchanges:
         print('------------------------' + exchange + '--------------------------')
-        tickers = get_ticker(exchange, test_currencies_pair)
-        display_list(tickers)
+        data = pd.DataFrame(get_ticker(price_matrix, exchange, test_currencies_pair))
+        # print(data)
+        writer = pd.ExcelWriter('output_%s.xlsx' % datetime.date.today())
+        data.to_excel(writer, exchange, )
+        writer.save()
+        writer.close()
+
 
 
 
