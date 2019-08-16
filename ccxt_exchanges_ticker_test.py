@@ -7,6 +7,7 @@
 
 import ccxt
 import pandas as pd
+import numpy as np
 import time
 import datetime
 
@@ -90,9 +91,14 @@ if __name__ == '__main__':
         print('------------------------' + good_exchanges[i] + '--------------------------')
         data.append(get_ticker(price_matrix, good_exchanges[i], test_currencies_pair))
         # print(data[i])
-    df = pd.Dataframe(data)
+    np_data = np.array(data)
+    np.save('np_%s.dat' % datetime.date.today(), np_data)
+
+    df = pd.DataFrame(data)
     # print(data)
-    writer = pd.ExcelWriter('output_%s.xlsx' % datetime.date.today())
+    df.to_csv('output_%s.csv' % datetime.date.today() + '-' + str(time.time()))
+
+    writer = pd.ExcelWriter('output_%s.xlsx' % (datetime.date.today() + '-' + str(time.time())))
     df.to_excel(writer, 'all')
     writer.save()
     writer.close()
