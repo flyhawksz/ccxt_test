@@ -40,8 +40,6 @@ def get_ticker(price_matrix, obj_exchange, currencies_pair):
     _tickers = []
     _exchange = getattr(ccxt, obj_exchange)()
     if _exchange:
-        temp_price = Price()
-
         market = _exchange.load_markets()
         # display_dic(market)
         # print(market)
@@ -49,11 +47,13 @@ def get_ticker(price_matrix, obj_exchange, currencies_pair):
         # display_list(symbols)
         # print(symbols)
         for pair in currencies_pair:
+            temp_price = Price()
             temp_price.exchange = _exchange.name
             temp_price.currency_pair = pair
 
             if pair in symbols:
                 _ticker = _exchange.fetch_ticker(pair)
+                # print(_ticker)
                 temp_price.timestamp = _ticker['timestamp']
                 temp_price.bid = _ticker['bid']
                 temp_price.ask = _ticker['ask']
@@ -63,7 +63,7 @@ def get_ticker(price_matrix, obj_exchange, currencies_pair):
                 # display_dic(ticker)
                 # print(ticker)
             price_matrix.append(temp_price.get_price_array())
-
+        # print(price_matrix)
         return price_matrix
 
 
@@ -77,6 +77,7 @@ def display_list(obj):
         print(i)
 
 
+TIMESTAMP = "%Y%m%d%H%M%S"
 good_currencies = ['BTC', 'ETH', 'LTC', 'USDT']
 good_exchanges = ['bitfinex', 'binance', 'okex', 'poloniex', 'bittrex', 'bitstamp', 'gdax']
 
@@ -91,14 +92,26 @@ if __name__ == '__main__':
         print('------------------------' + good_exchanges[i] + '--------------------------')
         data.append(get_ticker(price_matrix, good_exchanges[i], test_currencies_pair))
         # print(data[i])
-    np_data = np.array(data)
-    np.save('np_%s.dat' % datetime.date.today(), np_data)
 
-    df = pd.DataFrame(data)
+    # print('--------------------------price_matrix----------------------')
+    # print(price_matrix)
+    # print('--------------------------data-----------------------------')
     # print(data)
-    df.to_csv('output_%s.csv' % datetime.date.today() + '-' + str(time.time()))
+    np_price_matrix = np.array(price_matrix)
+    np_data = np.array(data)
+    # print(np_data)
 
-    writer = pd.ExcelWriter('output_%s.xlsx' % (datetime.date.today() + '-' + str(time.time())))
+    now = time.strftime(TIMESTAMP, time.localtime(time.time()))
+
+    np.save('np_%s.dat' % datetime.date.today(), np_price_matrix)
+    # np.savetxt('np_%s.csv' % now, np_price_matrix)
+
+    df = pd.DataFrame(price_matrix)
+    print(df)
+
+    df.to_csv('output_%s.csv' % now)
+
+    writer = pd.ExcelWriter('output_%s.xlsx' % now)
     df.to_excel(writer, 'all')
     writer.save()
     writer.close()
