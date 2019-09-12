@@ -83,6 +83,7 @@ def crawl_exchanges_datas(exchange_name, symbol, start_time, end_time):
             print(start_time_stamp)
             data = exchange.fetch_ohlcv(symbol, timeframe='1m', since=start_time_stamp, limit=limit_count)
             df = pd.DataFrame(data)
+            # 满足 Yahoo 格式
             df.rename(columns={0: 'Date Time', 1: 'Open', 2: 'High', 3: 'Low', 4: 'Close', 5: 'Volume'}, inplace=True)
 
             start_time_stamp = int(df.iloc[-1]['Date Time'])  # 获取下一个次请求的时间.
@@ -169,9 +170,9 @@ def clear_datas(exchange_name, symbol):
 
 if __name__ == '__main__':
 
-    crawl_exchanges_datas('binance', 'BTC/USDT', '2019-9-1', '2019-9-8')
+    # crawl_exchanges_datas('binance', 'BTC/USDT', '2019-9-1', '2019-9-8')
     # crawl_exchanges_datas('bitmex', 'BTC/USD', '2018-1-1', '2018-3-1')
-    # crawl_exchanges_datas('bitfinex', 'BTC/USDT', '2019-1-1', '2019-7-22')
+    crawl_exchanges_datas('bitfinex', 'BTC/USDT', '2019-9-1', '2019-9-8')
 
     # sample_datas('bitfinex', 'BTC/USD')
     # clear_datas('bitfinex', 'BTC/USD')
