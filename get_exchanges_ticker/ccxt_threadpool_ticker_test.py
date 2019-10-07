@@ -311,6 +311,7 @@ class GetMultiExchangeTicker:
                 wait(all_task, timeout=40, return_when=ALL_COMPLETED)
 
                 print(self.matrix)
+                np.savetxt('matrix.txt', self.matrix, delimiter=',')
                 print('...............................sleep.......................................')
                 time.sleep(self.sleep_time)
 
