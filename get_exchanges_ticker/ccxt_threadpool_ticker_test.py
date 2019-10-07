@@ -11,6 +11,7 @@ import time
 import csv
 from signal import *
 import pandas as pd
+import numpy as np
 from queue import Queue
 from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED
 import threading
@@ -41,11 +42,13 @@ logger.addHandler(fh)
 class Price(object):
     exchange = ''
     currency_pair = ''
+    base_currency = ''
+    target_currency = ''
     timestamp = 0
-    bid = 0
-    ask = 0
-    # bidVolume = 0
+    ask = 0  # 卖价，要价
+    bid = 0  # 买价
     # askVolume = 0
+    # bidVolume = 0
 
     def get_price_array(self):
         return [self.exchange, self.timestamp, self.currency_pair, self.bid, self.ask]
@@ -73,15 +76,36 @@ class GetMultiExchangeTicker:
         self.max_records = 200
         self.data_queue = Queue(maxsize=len(self.good_exchanges))
         self.stop_flag = False
+        self.matrix_dim = int(str(len(self.good_exchanges)) + str(len(self.good_currencies)))
+        self.matrix = np.zeros((self.matrix_dim , self.matrix_dim ))
 
         if not os.path.exists(self.data_path):
             os.makedirs(self.data_path)
+
+    def fill_matrix(self, temp_price: Price):
+        print('***************fill_matrix************')
+        exchange_index = self.good_exchanges.index(temp_price.exchange.lower())
+        base_currency_index = self.good_currencies.index(temp_price.base_currency.upper())
+        target_currency_index = self.good_currencies.index(temp_price.target_currency.upper())
+        base_target_price = temp_price.ask
+        target_base_price = temp_price.bid
+
+        base_index = int(str(exchange_index) + str(base_currency_index))
+        target_index = int(str(exchange_index) + str(target_currency_index))
+        print('{},{},{},{}'.format(temp_price.exchange.lower(), temp_price.currency_pair, \
+                                         temp_price.ask, temp_price.bid))
+        print('{},{},{}'.format(base_index, target_index, base_target_price))
+        self.matrix[base_index][target_index] = base_target_price
+        print('{},{},{}'.format(target_index, base_index, target_base_price))
+        self.matrix[target_index][base_index] = target_base_price
+
+        # print(self.matrix)
 
     def make_pair(self, currencis):
         currencis_pair = []
         for i in range(len(currencis)):
             for currency in currencis:
-                if currencis[i] == currency:continue
+                if currencis[i] == currency: continue
                 currencis_pair.append(currencis[i] + '/' + currency)
 
         # display_list(currencis_pair)
@@ -92,15 +116,40 @@ class GetMultiExchangeTicker:
         temp_price = Price()
         temp_price.exchange = exchange
         temp_price.currency_pair = symbol
+        temp_price.base_currency, temp_price.target_currency = symbol.split('/')
         temp_price.timestamp = _ticker['timestamp']
-        temp_price.bid = _ticker['bid']
         temp_price.ask = _ticker['ask']
+        temp_price.bid = _ticker['bid']
         # temp_price.bidVolume = _ticker['bidVolume']
         # temp_price.askVolume = _ticker['askVolume']
 
+        self.fill_matrix(temp_price)
+        # self.save_in_exchange(exchange, symbol, temp_price)
         self.save_in_classify_dir(exchange, symbol, temp_price)
         self.save_in_one_dir(exchange, symbol, temp_price)
+
         return temp_price
+
+    def save_in_exchange(self, exchange, symbol, temp_price):
+        print('\n*********save_in_exchange**************\n')
+        filename = exchange + '.csv'
+        path_file_name = os.path.join(self.data_path, filename)
+        if not os.path.exists(path_file_name):
+            with open(path_file_name, 'w') as csv_file:
+                csv_writer = csv.DictWriter(csv_file, fieldnames=self.DataFrame_fieldnames)
+                csv_writer.writeheader()
+                print('make header')
+
+        with open(path_file_name, 'a') as csv_file:
+            csv_writer = csv.DictWriter(csv_file, fieldnames=self.DataFrame_fieldnames)
+            info = {
+                'exchange': exchange,
+                'timestamp': temp_price.timestamp,
+                'symbol': symbol,
+                'bid': temp_price.bid,
+                'ask': temp_price.ask
+            }
+            csv_writer.writerow(info)
 
     def save_in_classify_dir(self, exchange, symbol, temp_price):
         # print('start save ticker in classified dir : {} - {}'.format(exchange, symbol))
@@ -184,7 +233,7 @@ class GetMultiExchangeTicker:
     def multi_exchanges(self, _exchange):
         target_symbols = []  # market 中要取的symbol
 
-        print('threading {} start work'.format(threading.get_ident()))
+        print('\nthreading {} start work\n'.format(threading.get_ident()))
         # print('start get ticker in {}'.format(_exchange))
         exchange = getattr(ccxt, _exchange)()
 
@@ -239,6 +288,11 @@ class GetMultiExchangeTicker:
                         logger.info('{},{},{}'.format(symbol, exchangeA + '-' + exchangeB, askA/bidB-1))
                         if abs(rate) > 0.005:
                             logger.warning('!!!!!!!!!!!!!! rate more than 0.5% !!!!!!!!!!!!!!!!!')
+                            logger.warning('the ticker is: {},{},{},{}'.format(symbol, exchangeA, askA, bidA))
+                            logger.warning('the ticker is: {},{},{},{}'.format(symbol, exchangeB, askB, bidB))
+                            print('!!!!!!!!!!!!!! rate more than 0.5% !!!!!!!!!!!!!!!!!')
+                            print('the ticker is: {},{},{},{}'.format(symbol, exchangeA, askA, bidA))
+                            print('the ticker is: {},{},{},{}'.format(symbol, exchangeB, askB, bidB))
 
             # for i in combinations(symbol_data, 2):
             #     print(i)
@@ -250,13 +304,18 @@ class GetMultiExchangeTicker:
                 for exchange in self.good_exchanges:
                     all_task.append(executor.submit(self.multi_exchanges, exchange))
                 # time.sleep(self.sleep_time)
-                print('total collected ticker {}'.format(self.count))
+                print('\n----------total collected ticker {}-----------------\n'.format(self.count))
                 if self.count > self.max_records:
                     break
                 # all_task = [executor.submit(get_html, (url)) for url in urls]
-                wait(all_task, timeout=20, return_when=ALL_COMPLETED)
+                wait(all_task, timeout=40, return_when=ALL_COMPLETED)
+
+                print(self.matrix)
                 print('...............................sleep.......................................')
                 time.sleep(self.sleep_time)
+
+            self.matrix = np.zeros((self.matrix_dim, self.matrix_dim))
+
         print('finished collect data')
 
 
