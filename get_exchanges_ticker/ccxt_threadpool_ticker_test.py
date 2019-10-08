@@ -61,7 +61,7 @@ class GetMultiExchangeTicker:
         # self.TIMESTAMP = "%Y%m%d%H%M%S"
         self.good_currencies = ['BTC', 'ETH', 'LTC', 'USDT', 'USD']
         # self.good_exchanges = ['gdax', 'bitstamp', 'bitfinex', 'binance', 'okex']
-        self.good_exchanges = ['gdax', 'bitstamp'] # , 'bitfinex', 'binance', 'okex']
+        self.good_exchanges = ['gdax', 'bitstamp', 'bitfinex']  # , 'binance', 'okex']
         self.fieldnames = ['timestamp', 'bid', 'ask']
         self.DataFrame_fieldnames = ['exchange', 'timestamp', 'symbol', 'bid', 'ask']
         self.candidate_exchange_symbol = {}
@@ -76,11 +76,44 @@ class GetMultiExchangeTicker:
         self.max_records = 200
         self.data_queue = Queue(maxsize=len(self.good_exchanges))
         self.stop_flag = False
-        self.matrix_dim = int(str(len(self.good_exchanges)) + str(len(self.good_currencies)))
-        self.matrix = np.zeros((self.matrix_dim , self.matrix_dim ))
 
+        self.matrix_dim = int(str(len(self.good_exchanges) - 1) + str(len(self.good_currencies)))
+        self.matrix = self.create_blank_directed_matrix(self.matrix_dim)
+        self.vertices = self.create_vertices(self.matrix_dim)
+        print(self.vertices)
         if not os.path.exists(self.data_path):
             os.makedirs(self.data_path)
+
+    def create_vertices(self, dim):
+        vertices = list(range(0, dim))
+        print(vertices)
+
+        for i in range(len(self.good_exchanges)):
+            for j in range(10):
+                if i >= len(self.good_exchanges)-1 and j >= len(self.good_currencies):
+                    break
+
+                if j >= len(self.good_currencies):
+                    exchange = 'v' + str(i)
+                    currency = str(j)
+                else:
+                    exchange = self.good_exchanges[i]
+                    currency = self.good_currencies[j]
+
+                index = i * 10 + j
+                vertices[index] = exchange + '.' + currency
+
+        return vertices
+
+    def create_blank_directed_matrix(self, dim):
+        matrix = np.zeros((dim, dim))
+        inf = float('inf')
+        for i in range(dim):
+            for j in range(dim):
+                if i != j:
+                    matrix[i][j] = inf
+
+        return matrix
 
     def fill_matrix(self, temp_price: Price):
         print('***************fill_matrix************')
@@ -301,6 +334,7 @@ class GetMultiExchangeTicker:
         all_task = []
         with ThreadPoolExecutor(len(self.good_exchanges)) as executor:
             while not self.stop_flag:
+                now = time.time()
                 for exchange in self.good_exchanges:
                     all_task.append(executor.submit(self.multi_exchanges, exchange))
                 # time.sleep(self.sleep_time)
@@ -311,10 +345,11 @@ class GetMultiExchangeTicker:
                 wait(all_task, timeout=40, return_when=ALL_COMPLETED)
 
                 print(self.matrix)
-                np.savetxt('matrix.txt', self.matrix, delimiter=',')
+                np.savetxt('matrix.txt', self.matrix, delimiter=',', fmt='%10.5f')
+                np.savetxt('vertices.txt', self.vertices, delimiter=',', fmt='%s')
                 print('...............................sleep.......................................')
                 time.sleep(self.sleep_time)
-
+                print('spend time {}'.format(time.time() - now))
             self.matrix = np.zeros((self.matrix_dim, self.matrix_dim))
 
         print('finished collect data')
