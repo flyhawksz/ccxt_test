@@ -9,7 +9,7 @@ import ccxt
 import os
 import time
 import csv
-from signal import *
+# from signal import *
 import pandas as pd
 import numpy as np
 from queue import Queue
@@ -17,7 +17,7 @@ from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED
 import threading
 import logging  # 引入logging模块
 import os.path
-import time
+# import time
 
 
 # 第一步，创建一个logger
@@ -116,7 +116,7 @@ class GetMultiExchangeTicker:
         return matrix
 
     def fill_matrix(self, temp_price: Price):
-        print('***************fill_matrix************')
+        # print('***************fill_matrix************')
         exchange_index = self.good_exchanges.index(temp_price.exchange.lower())
         base_currency_index = self.good_currencies.index(temp_price.base_currency.upper())
         target_currency_index = self.good_currencies.index(temp_price.target_currency.upper())
@@ -125,11 +125,11 @@ class GetMultiExchangeTicker:
 
         base_index = int(str(exchange_index) + str(base_currency_index))
         target_index = int(str(exchange_index) + str(target_currency_index))
-        print('{},{},{},{}'.format(temp_price.exchange.lower(), temp_price.currency_pair, \
-                                         temp_price.ask, temp_price.bid))
-        print('{},{},{}'.format(base_index, target_index, base_target_price))
+        # print('{},{},{},{}'.format(temp_price.exchange.lower(), temp_price.currency_pair, \
+        #                                  temp_price.ask, temp_price.bid))
+        # print('{},{},{}'.format(base_index, target_index, base_target_price))
         self.matrix[base_index][target_index] = base_target_price
-        print('{},{},{}'.format(target_index, base_index, target_base_price))
+        # print('{},{},{}'.format(target_index, base_index, target_base_price))
         self.matrix[target_index][base_index] = target_base_price
 
         # print(self.matrix)
@@ -171,7 +171,7 @@ class GetMultiExchangeTicker:
             with open(path_file_name, 'w') as csv_file:
                 csv_writer = csv.DictWriter(csv_file, fieldnames=self.DataFrame_fieldnames)
                 csv_writer.writeheader()
-                print('make header')
+                # print('make header')
 
         with open(path_file_name, 'a') as csv_file:
             csv_writer = csv.DictWriter(csv_file, fieldnames=self.DataFrame_fieldnames)
@@ -198,7 +198,7 @@ class GetMultiExchangeTicker:
             with open(symbol_path_file_name, 'w') as csv_file:
                 csv_writer = csv.DictWriter(csv_file, fieldnames=self.fieldnames)
                 csv_writer.writeheader()
-                print('make header')
+                # print('make header')
 
         with open(symbol_path_file_name, 'a') as csv_file:
             csv_writer = csv.DictWriter(csv_file, fieldnames=self.fieldnames)
@@ -217,7 +217,7 @@ class GetMultiExchangeTicker:
             with open(path_file_name, 'w') as csv_file:
                 csv_writer = csv.DictWriter(csv_file, fieldnames=self.fieldnames)
                 csv_writer.writeheader()
-                print('make header')
+                # print('make header')
 
         with open(path_file_name, 'a') as csv_file:
             csv_writer = csv.DictWriter(csv_file, fieldnames=self.fieldnames)
@@ -303,7 +303,7 @@ class GetMultiExchangeTicker:
         # 开始按symbol 将exchange 两两组合进行计算，
         for symbol in self.valid_symbol:
             # print('-'*30)
-            print('开始取数据，货币对为：', symbol)
+            # print('开始取数据，货币对为：', symbol)
             symbol_data = data[data.symbol==symbol]
             # print(symbol_data)
             for indexA, rowA in symbol_data.iterrows():
@@ -317,15 +317,15 @@ class GetMultiExchangeTicker:
                     # print(exchangeA, exchangeB, askA, bidB)
                     if exchangeA != exchangeB:
                         rate = askA/bidB-1
-                        print(symbol, exchangeA + '-' + exchangeB, askA/bidB-1)
+                        # print(symbol, exchangeA + '-' + exchangeB, askA/bidB-1)
                         logger.info('{},{},{}'.format(symbol, exchangeA + '-' + exchangeB, askA/bidB-1))
                         if abs(rate) > 0.005:
                             logger.warning('!!!!!!!!!!!!!! rate more than 0.5% !!!!!!!!!!!!!!!!!')
                             logger.warning('the ticker is: {},{},{},{}'.format(symbol, exchangeA, askA, bidA))
                             logger.warning('the ticker is: {},{},{},{}'.format(symbol, exchangeB, askB, bidB))
-                            print('!!!!!!!!!!!!!! rate more than 0.5% !!!!!!!!!!!!!!!!!')
-                            print('the ticker is: {},{},{},{}'.format(symbol, exchangeA, askA, bidA))
-                            print('the ticker is: {},{},{},{}'.format(symbol, exchangeB, askB, bidB))
+                            # print('!!!!!!!!!!!!!! rate more than 0.5% !!!!!!!!!!!!!!!!!')
+                            # print('the ticker is: {},{},{},{}'.format(symbol, exchangeA, askA, bidA))
+                            # print('the ticker is: {},{},{},{}'.format(symbol, exchangeB, askB, bidB))
 
             # for i in combinations(symbol_data, 2):
             #     print(i)
@@ -345,11 +345,13 @@ class GetMultiExchangeTicker:
                 wait(all_task, timeout=40, return_when=ALL_COMPLETED)
 
                 print(self.matrix)
-                np.savetxt('matrix.txt', self.matrix, delimiter=',', fmt='%10.5f')
+                np.savetxt('matrix.txt', self.matrix, delimiter=',', fmt='%10.8f')
                 np.savetxt('vertices.txt', self.vertices, delimiter=',', fmt='%s')
+                print('spend time {}'.format(time.time() - now))
                 print('...............................sleep.......................................')
                 time.sleep(self.sleep_time)
-                print('spend time {}'.format(time.time() - now))
+
+            #  matrix 全部清零
             self.matrix = np.zeros((self.matrix_dim, self.matrix_dim))
 
         print('finished collect data')
