@@ -59,13 +59,14 @@ class GetMultiExchangeTicker:
 
     def __init__(self):
         # self.TIMESTAMP = "%Y%m%d%H%M%S"
-        self.good_currencies = ['BTC', 'ETH', 'LTC', 'USDT', 'USD']
+        self.good_currencies = ['USD', 'BTC', 'ETH', 'LTC', 'USDT']
         # self.good_exchanges = ['gdax', 'bitstamp', 'bitfinex', 'binance', 'okex']
         self.good_exchanges = ['gdax', 'bitstamp', 'bitfinex']  # , 'binance', 'okex']
         self.fieldnames = ['timestamp', 'bid', 'ask']
         self.DataFrame_fieldnames = ['exchange', 'timestamp', 'symbol', 'bid', 'ask']
         self.candidate_exchange_symbol = {}
-        self.target_exchange_symbol = {}
+        self.target_exchange_symbol = {}  # 以市场为key，symbol为内容
+        self.target_symbol_exchange = {}  # 以symbol为kwy， exchange为内容，为矩阵中不同市场间，相同symbol可以兑换
         self.test_symbol = self.make_pair(self.good_currencies)
         self.valid_symbol = set()
         # 数据文件夹，不存在，就创建
@@ -343,6 +344,8 @@ class GetMultiExchangeTicker:
                     break
                 # all_task = [executor.submit(get_html, (url)) for url in urls]
                 wait(all_task, timeout=40, return_when=ALL_COMPLETED)
+
+                # 在全部访问完以后，对所有市场的所有symbol进行遍历，填充target_symbol_exchange.
 
                 print(self.matrix)
                 np.savetxt('matrix.txt', self.matrix, delimiter=',', fmt='%10.8f')
