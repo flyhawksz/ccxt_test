@@ -121,8 +121,8 @@ class GetMultiExchangeTicker:
             print(ticker)
             self.save_ticker(exchange.name, symbol, ticker)
             print(exchange.iso8601(exchange.milliseconds()), 'saved', symbol, 'ticker from', exchange.name)
-        except Exception as e:
-            print(e)
+        except KeyboardInterrupt:
+            await exchange.close()
 
         # await asyncio.sleep(self.sleep_time)
 
@@ -142,7 +142,7 @@ class GetMultiExchangeTicker:
             # print(i)
             symbols.add(i['symbol'])
 
-        print('the symbols in {} is :{}'.format(_exchange, symbols))
+        print('the symbols in {} is :{}'.format(_exchange.name, symbols))
         # self.candidate_exchange_symbol[exchange.name] = symbols
         # print(self.candidate_exchange_symbol)
 
@@ -150,14 +150,12 @@ class GetMultiExchangeTicker:
         for symbol in self.test_symbol:
             if symbol in symbols:
                 target_symbols.append(symbol)
-        print('target_symbols is {}'.format(target_symbols))
 
-        event_loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(event_loop)
+        event_loop = asyncio.get_event_loop()
         tasks = [self.async_ticker(_exchange, _symbol) for _symbol in target_symbols]
 
         try:
-            event_loop.run_until_complete(asyncio.wait(tasks))
+            event_loop.run_until_complete(tasks)
         finally:
             event_loop.close()
 
