@@ -85,6 +85,18 @@ class GetMultiExchangeTicker:
         if not os.path.exists(self.data_path):
             os.makedirs(self.data_path)
 
+    def fill_target_symbol_exchange(self):
+        print('target_exchange symbol:{}'.format(self.target_exchange_symbol))
+        for exchange in self.target_exchange_symbol:
+            for symbol in self.target_exchange_symbol[exchange]:
+                if symbol not in self.target_symbol_exchange.keys():
+                    self.target_symbol_exchange[symbol] = {exchange}
+                else:
+                    if exchange not in self.target_symbol_exchange[symbol]:
+                        self.target_symbol_exchange[symbol].add(exchange)
+
+        print(self.target_symbol_exchange)
+
     def create_vertices(self, dim):
         vertices = list(range(0, dim))
         print(vertices)
@@ -251,6 +263,7 @@ class GetMultiExchangeTicker:
         target_symbols = []
         symbols = set()  # 从市场中取得所有symbol
         market = exchange.fetch_markets()
+        # print('market:', market)
         for i in market:
             symbols.add(i['symbol'])
         # print('the symbols in {} is :{}'.format(exchange.name, target_symbols))
@@ -263,6 +276,12 @@ class GetMultiExchangeTicker:
                 target_symbols.append(symbol)
         # print('target_symbols is {}'.format(target_symbols))
         return target_symbols
+
+    def get_exchange_currencies(self, exchange):
+        target_currencies = []
+        currencies = exchange.currencies
+        print(currencies)
+        return currencies
 
     def multi_exchanges(self, _exchange):
         target_symbols = []  # market 中要取的symbol
@@ -280,6 +299,9 @@ class GetMultiExchangeTicker:
             # print('不存在symbols, 从市场中取数')
             target_symbols = self.get_market_symbols(exchange)
             self.target_exchange_symbol[_exchange] = target_symbols
+
+        currencies = self.get_exchange_currencies(exchange)
+        print(currencies)
 
         symbol_price = []
         for _symbol in target_symbols:
@@ -346,6 +368,8 @@ class GetMultiExchangeTicker:
                 wait(all_task, timeout=40, return_when=ALL_COMPLETED)
 
                 # 在全部访问完以后，对所有市场的所有symbol进行遍历，填充target_symbol_exchange.
+                # print('-------------------------fill_target_symbol_exchange-------------------------')
+                # self.fill_target_symbol_exchange()
 
                 print(self.matrix)
                 np.savetxt('matrix.txt', self.matrix, delimiter=',', fmt='%10.8f')
