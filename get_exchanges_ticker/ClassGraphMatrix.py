@@ -13,13 +13,14 @@ import numpy as np
 
 class GraphMatrix:
     """
-	Adjacency Matrix
-	"""
+    Adjacency Matrix
+    """
+
     def __init__(self, vertices=[], matrix=[]):
         """
-		:param vertices:a dict with vertex id and index of matrix , such as {vertex:index}
-		:param matrix: a matrix
-		"""
+        :param vertices:a dict with vertex id and index of matrix , such as {vertex:index}
+        :param matrix: a matrix
+        """
 
         self.matrix = matrix  # <type 'list'>: [[0, 2, 1, 3, 9, 4, inf, inf], [inf, 0, 4, inf, 3, inf, inf, inf], ]
         self.edges_dict = {}  # {(tail, head):weight} {('a', 'b'): 2, ('a', 'd'): 3, ('a', 'c'): 1, ('a', 'f'): 4}
@@ -27,12 +28,16 @@ class GraphMatrix:
         self.edges_array_for_sort = []  # (weight, tail, head) for sort to get shortest edge
         self.vertices = vertices  # <type 'list'>: ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
         self.num_edges = 0
+        self.vertex_neighbors = {}  # 以名称方式列示
+        self.vertex_neighbors_index = {}  # 以序号方式列示
+
 
         # if provide adjacency matrix then create the edges list
         if len(matrix) > 0:
             if len(vertices) != len(matrix):
                 raise IndexError
             self.edges = self.get_all_edges()
+            self.get_all_neighbors()
             self.num_edges = len(self.edges)
 
         # if do not provide a adjacency matrix, but provide the vertices list, build a matrix with 0
@@ -74,7 +79,7 @@ class GraphMatrix:
         for i in range(len(edges_list)):
             self.add_edge(edges_list[i][0], edges_list[i][1], edges_list[i][2], )
 
-    def add_edge(self, tail, head, cost=0):
+    def add_edge(self, head, tail, cost=0):
         # if self.vertices.index(tail) >= 0:
         # 	self.addVertex(tail)
         if tail not in self.vertices:
@@ -94,6 +99,20 @@ class GraphMatrix:
         self.edges_array.append([tail, head, cost])
         self.edges_array_for_sort.append([tail, head, cost])
         self.num_edges = len(self.edges_dict)
+
+    def get_all_neighbors(self):
+        for i in range(len(self.matrix)):
+            for j in range(len(self.matrix)):
+                if 0 < self.matrix[i][j] < float('inf'):
+                    if self.vertices[i] not in self.vertex_neighbors.keys():
+                        self.vertex_neighbors[self.vertices[i]] = []
+                    if self.vertices[j] not in self.vertex_neighbors[self.vertices[i]]:
+                        self.vertex_neighbors[self.vertices[i]].append(self.vertices[j])
+
+                    if i not in self.vertex_neighbors_index.keys():
+                        self.vertex_neighbors_index[i] = []
+                    if j not in self.vertex_neighbors_index[i]:
+                        self.vertex_neighbors_index[i].append(j)
 
     def get_edges(self, V):
         pass
@@ -124,28 +143,28 @@ class GraphMatrix:
     def to_do_edge(self, w, k):
         print('edge tail: %s, edge head: %s, weight: %s' % (self.vertices[w], self.vertices[k], str(self.matrix[w][k])))
 
-    def DepthFirstSearch(self):
-        """
-		traverse all the vertices, there are may some disconnected vertices, dfs can not visit
-		so that need visit all of them, and call dfs
-		"""
-
-        def DFS(self, i, queue):  # with queue
-            queue.append(i)
-            self.to_do_vertex(i)
-            visited[i] = 1
-            if len(queue) != 0:
-                w = queue.pop()
-                for k in range(self.num_vertices):
-                    if self.matrix[w][k] is 1 and visited[k] is 0:
-                        self.to_do_edge(w, k)
-                        DFS(self, k, queue)
-
-        visited = [0] * self.num_vertices
-        queue = []
-        for i in range(self.num_vertices):
-            if visited[i] is 0:
-                DFS(self, i, queue)
+    # def DepthFirstSearch(self):
+    #     """
+	# 	traverse all the vertices, there are may some disconnected vertices, dfs can not visit
+	# 	so that need visit all of them, and call dfs
+	# 	"""
+    #
+    #     def DFS(self, i, queue):  # with queue
+    #         queue.append(i)
+    #         self.to_do_vertex(i)
+    #         visited[i] = 1
+    #         if len(queue) != 0:
+    #             w = queue.pop()
+    #             for k in range(self.num_vertices):
+    #                 if self.matrix[w][k] is 1 and visited[k] is 0:
+    #                     self.to_do_edge(w, k)
+    #                     DFS(self, k, queue)
+    #
+    #     visited = [0] * self.num_vertices
+    #     queue = []
+    #     for i in range(self.num_vertices):
+    #         if visited[i] is 0:
+    #             DFS(self, i, queue)
 
     def draw_undirected_graph(self):
         G = nx.Graph()  # 建立一个空的无向图G
@@ -237,15 +256,37 @@ def create_directed_graph_from_edges(my_graph):
     return my_graph
 
 
+def create_directed_exchange_rate_matrix(my_graph):
+    nodes = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
+    inf = float('inf')
+    matrix = [[0, 2, 1, 3, 9, 4, inf, inf],  # a
+              [inf, 0, 4, inf, 3, inf, inf, inf],  # b
+              [inf, inf, 0, 8, inf, inf, inf, inf],  # c
+              [inf, inf, inf, 0, 7, inf, inf, inf],  # d
+              [inf, inf, inf, inf, 0, 5, inf, inf],  # e
+              [inf, inf, 2, inf, inf, 0, 2, 2],  # f
+              [inf, inf, inf, inf, inf, 1, 0, 6],  # g
+              [inf, inf, inf, inf, inf, 9, 8, 0]]  # h
+
+    my_graph = GraphMatrix(nodes, matrix)
+    print(my_graph)
+    return my_graph
+
+
 def load_from_txt():
     vertices_txt = 'vertices.txt'
     matrix_txt = 'matrix.txt'
     nodes = np.loadtxt(vertices_txt, dtype=bytes).astype(str)
-    print(nodes)
-    matrix = np.loadtxt(matrix_txt, dtype=bytes, delimiter=',').astype(float)
-    print(matrix)
-    my_graph = GraphMatrix(nodes, matrix)
-    print(my_graph)
+    # print(nodes)
+    # matrix = np.loadtxt(matrix_txt, dtype=bytes, delimiter=',').astype(float)
+    matrix = np.loadtxt('matrix.txt', delimiter=',')
+    # print('\n')
+    # print('-' * 30)
+    # print(matrix)
+    my_graph = GraphMatrix(list(nodes), list(matrix))
+    # print('\n')
+    # print('-' * 30)
+    # print(my_graph)
     return my_graph
 
 

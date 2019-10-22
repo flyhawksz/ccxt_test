@@ -61,7 +61,7 @@ class GetMultiExchangeTicker:
         # self.TIMESTAMP = "%Y%m%d%H%M%S"
         self.good_currencies = ['USD', 'BTC', 'ETH', 'LTC', 'USDT']
         # self.good_exchanges = ['gdax', 'bitstamp', 'bitfinex', 'binance', 'okex']
-        self.good_exchanges = ['gdax', 'bitstamp']  # , 'bitfinex', 'binance', 'okex']
+        self.good_exchanges = ['gdax', 'bitstamp', 'bitfinex']  # , 'binance', 'okex']
         self.fieldnames = ['timestamp', 'bid', 'ask']
         self.DataFrame_fieldnames = ['exchange', 'timestamp', 'symbol', 'bid', 'ask']
 
@@ -94,7 +94,8 @@ class GetMultiExchangeTicker:
             for exchange_tail, currencies_tail in self.valid_exchange_currency.items():
                 for currency_header in currencies_header:
                     for currency_tail in currencies_tail:
-                        if exchange_header != exchange_tail and currency_header == currency_tail:
+                        if exchange_header != exchange_tail and currency_header == currency_tail\
+                                and currency_header != 'USD':
                             index_exchange_header = self.good_exchanges.index(exchange_header)
                             index_exchange_tail = self.good_exchanges.index(exchange_tail)
                             index_currency = self.good_currencies.index(currency_header)
