@@ -124,14 +124,6 @@ if __name__ == '__main__':
                                fromdate=datetime.datetime(2015, 1, 1),
                                todate=datetime.datetime(2016, 12, 31)
                                )
-    # ————————————————
-    # 版权声明：本文为CSDN博主「钱塘小甲子」的原创文章，遵循
-    # CC
-    # 4.0
-    # BY - SA
-    # 版权协议，转载请附上原文出处链接及本声明。
-    # 原文链接：https: // blog.csdn.net / qtlyx / article / details / 70945174
-
     # Create a Data Feed
     # data = bt.feeds.YahooFinanceCSVData(
     #     dataname=datapath,
@@ -147,15 +139,15 @@ if __name__ == '__main__':
 
     # Set our desired cash start
     cerebro.broker.setcash(100000.0)
-
-    # Print out the starting conditions
+    cerebro.addsizer(bt.sizers.FixedSize, stake=10)
+    cerebro.broker.setcommission(commission=0.001)
     print('Starting Portfolio Value: %.2f' % cerebro.broker.getvalue())
-
-    # Run over everything
-    cerebro.run()
-
-    # Print out the final result
+    cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='SharpeRatio')
+    cerebro.addanalyzer(bt.analyzers.DrawDown, _name='DW')
+    results = cerebro.run()
+    strat = results[0]
     print('Final Portfolio Value: %.2f' % cerebro.broker.getvalue())
-
-    # Plot the result
+    print('SR:', strat.analyzers.SharpeRatio.get_analysis())
+    print('DW:', strat.analyzers.DW.get_analysis())
     cerebro.plot()
+

@@ -10,6 +10,58 @@ import pandas as pd
 import backtrader as bt
 
 
+class MyStrategy(bt.Strategy):
+    params = (
+        ('ssa_window', 15),
+        ('maperiod', 15),
+    )
+
+    def log(self, txt, dt=None):
+        ''' Logging function fot this strategy'''
+        dt = dt or self.datas[0].datetime.date(0)
+        print('%s, %s' % (dt.isoformat(), txt))
+
+    def __init__(self):
+        # Keep a reference to the "close" line in the data[0] dataseries
+        self.dataclose = self.datas[0].close
+
+        # To keep track of pending orders and buy price/commission
+        self.order = None
+        self.buyprice = None
+        self.buycomm = None
+
+        # Add a MovingAverageSimple indicator
+        # self.ssa = ssa_index_ind(
+        #     self.datas[0], ssa_window=self.params.ssa_window)
+        self.sma = bt.indicators.SimpleMovingAverage(
+            self.datas[0], period=self.params.maperiod)
+
+    def next(self):
+        if self.order:
+            return
+        if not self.position:
+            if self.dataclose[0] > self.sma[0]:
+                self.order = self.buy()
+
+        else:
+
+            if self.dataclose[0] < self.sma[0]:
+                # Keep track of the created order to avoid a 2nd order
+                self.order = self.sell()
+
+    def stop(self):
+        self.log('(MA Period %2d) Ending Value %.2f' %
+                 (self.params.maperiod, self.broker.getvalue()))
+
+# ————————————————
+# 版权声明：本文为CSDN博主「钱塘小甲子」的原创文章，遵循
+# CC
+# 4.0
+# BY - SA
+# 版权协议，转载请附上原文出处链接及本声明。
+# 原文链接：https: // blog.csdn.net / qtlyx / article / details / 71215299
+
+
 # Create a subclass of Strategy to define the indicators and logic
 class SmaCross(bt.Strategy):
     # list of parameters which are configurable for the strategy
@@ -109,7 +161,10 @@ if __name__ == '__main__':
 
     # Add a strategy
     # cerebro.addstrategy(SmaCross)
-    cerebro.addstrategy(TestStrategy)
+    # cerebro.addstrategy(TestStrategy)
+    cerebro.optstrategy(
+        MyStrategy,
+        maperiod=range(10, 31))
 
     # Datas are in a subfolder of the samples. Need to find where the script is
     # because it could have been called from anywhere
@@ -124,14 +179,6 @@ if __name__ == '__main__':
                                fromdate=datetime.datetime(2015, 1, 1),
                                todate=datetime.datetime(2016, 12, 31)
                                )
-    # ————————————————
-    # 版权声明：本文为CSDN博主「钱塘小甲子」的原创文章，遵循
-    # CC
-    # 4.0
-    # BY - SA
-    # 版权协议，转载请附上原文出处链接及本声明。
-    # 原文链接：https: // blog.csdn.net / qtlyx / article / details / 70945174
-
     # Create a Data Feed
     # data = bt.feeds.YahooFinanceCSVData(
     #     dataname=datapath,
@@ -147,15 +194,15 @@ if __name__ == '__main__':
 
     # Set our desired cash start
     cerebro.broker.setcash(100000.0)
-
-    # Print out the starting conditions
+    cerebro.addsizer(bt.sizers.FixedSize, stake=10)
+    cerebro.broker.setcommission(commission=0.001)
     print('Starting Portfolio Value: %.2f' % cerebro.broker.getvalue())
-
-    # Run over everything
-    cerebro.run()
-
-    # Print out the final result
+    cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='SharpeRatio')
+    cerebro.addanalyzer(bt.analyzers.DrawDown, _name='DW')
+    results = cerebro.run()
+    strat = results[0]
     print('Final Portfolio Value: %.2f' % cerebro.broker.getvalue())
-
-    # Plot the result
+    # print('SR:', strat.analyzers.SharpeRatio.get_analysis())
+    # print('DW:', strat.analyzers.DW.get_analysis())
     cerebro.plot()
+
