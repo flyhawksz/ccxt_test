@@ -5,9 +5,22 @@ import datetime  # For datetime objects
 import os.path  # To manage paths
 import sys  # To find out the script name (in argv[0])
 import pandas as pd
-
 # Import the backtrader platform
 import backtrader as bt
+import backtrader.indicators as btind
+import backtrader.feeds as btfeeds
+
+
+class MyStrategy2(bt.Strategy):
+    params = dict(period=20)
+
+    def __init__(self):
+
+        self.movav = btind.SimpleMovingAverage(self.data, period=self.p.period)
+
+    def next(self):
+        if self.movav.lines.sma[0] > self.data.lines.close[0]:
+            print('Simple Moving Average is greater than the closing price')
 
 
 # Create a subclass of Strategy to define the indicators and logic
@@ -30,6 +43,58 @@ class SmaCross(bt.Strategy):
 
         elif self.crossover < 0:  # in the market & cross to the downside
             self.close()  # close long position
+
+
+# Create a subclass of Strategy to define the indicators and logic
+class CdmaCross(bt.Strategy):
+    # list of parameters which are configurable for the strategy
+    params = (
+        # Standard MACD Parameters
+        ('macd1', 12),
+        ('macd2', 26),
+        ('macdsig', 9),
+        ('atrperiod', 14),  # ATR Period (standard)
+        ('atrdist', 3.0),   # ATR distance for stop price
+        ('smaperiod', 30),  # SMA Period (pretty standard)
+        ('dirperiod', 10),  # Lookback period to consider SMA trend direction
+    )
+
+    def __init__(self):
+        self.macd = bt.indicators.MACD(self.data,
+                                       period_me1=self.p.macd1,
+                                       period_me2=self.p.macd2,
+                                       period_signal=self.p.macdsig)
+
+        # Cross of macd.macd and macd.signal
+        self.mcross = bt.indicators.CrossOver(self.macd.macd, self.macd.signal)
+
+        # Control market trend
+        self.sma = bt.indicators.SMA(self.data, period=self.p.smaperiod)
+        self.smadir = self.sma - self.sma(-self.p.dirperiod)
+
+    def start(self):
+        self.order = None  # sentinel to avoid operrations on pending order
+
+    def next(self):
+        if self.order:
+            return  # pending order execution
+
+        if not self.position:  # not in the market
+            if self.mcross[0] > 0.0 and self.smadir < 0.0:
+                self.order = self.buy()
+                # pdist = self.atr[0] * self.p.atrdist
+                # self.pstop = self.data.close[0] - pdist
+
+        else:  # in the market
+            pclose = self.data.close[0]
+            pstop = self.pstop
+
+            if pclose < pstop:
+                self.close()  # stop met - get out
+            else:
+                pdist = self.atr[0] * self.p.atrdist
+                # Update only if greater than
+                self.pstop = max(pstop, pclose - pdist)
 
 
 # Create a Stratey
@@ -109,7 +174,7 @@ if __name__ == '__main__':
 
     # Add a strategy
     # cerebro.addstrategy(SmaCross)
-    cerebro.addstrategy(TestStrategy)
+    cerebro.addstrategy(CdmaCross)
 
     # Datas are in a subfolder of the samples. Need to find where the script is
     # because it could have been called from anywhere

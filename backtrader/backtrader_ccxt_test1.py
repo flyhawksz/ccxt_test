@@ -45,8 +45,8 @@ def runstrategy(argv):
     # Create a cerebro
     cerebro = bt.Cerebro()
 
-    data = bt.feeds.CCXT(exchange='gdax', symbol='BTC/USD', timeframe=bt.TimeFrame.Ticks, compression=1)
-    cerebro.resampledata(data, timeframe=bt.TimeFrame.Seconds)
+    data = bt.feeds.CCXT(exchange='okex', symbol='BTC/USDT', timeframe=bt.TimeFrame.Ticks, compression=1)
+    cerebro.resampledata(data, timeframe=bt.TimeFrame.Minutes)
     # cerebro.adddata(data)
 
     # Add the strategy
