@@ -52,9 +52,9 @@ class TestStrategy(bt.Strategy):
 if __name__ == '__main__':
     cerebro = bt.Cerebro()
 
-    # exchange = sys.argv[1] if len(sys.argv) > 1 else 'bitfinex'
-    exchange = sys.argv[1] if len(sys.argv) > 1 else 'gateio'
-    symbol = sys.argv[2] if len(sys.argv) > 2 else 'ETH/USDT'
+    exchange = sys.argv[1] if len(sys.argv) > 1 else 'bitstamp'
+    # exchange = sys.argv[1] if len(sys.argv) > 1 else 'gateio'
+    symbol = sys.argv[2] if len(sys.argv) > 2 else 'ETH/USD'
 
     hist_start_date = datetime.utcnow() - timedelta(minutes=10)
     print('UTC NOW: ', datetime.utcnow())

@@ -178,6 +178,7 @@ if __name__ == '__main__':
 
     # Datas are in a subfolder of the samples. Need to find where the script is
     # because it could have been called from anywhere
+
     modpath = os.path.join(os.getcwd(), 'data')
     if not os.path.exists(modpath):
         os.makedirs(modpath)
