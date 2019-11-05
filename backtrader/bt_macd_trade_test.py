@@ -68,7 +68,10 @@ class CdmaCross(bt.Strategy):
         self.log('CASH:{}'.format(self.broker.get_cash()))
         self.log('value:{}'.format(self.broker.get_value()))
         # self.log('fundvalue:{}'.format(self.broker.get_fundvalue()))
-        self.log('postion:{}'.format(self.position.size))
+        self.log('postion size:{}'.format(self.position.size))
+        self.log('postion price:{}'.format(self.position.price))
+
+
 
         # if self.macd.macd[0] > 0:
         #     self.log('macd:{}'.format(self.macd.macd[0]))
@@ -86,7 +89,7 @@ class CdmaCross(bt.Strategy):
 
                 # Keep track of the created order to avoid a 2nd order
                 self.buy(exectype=bt.Order.Market, size=self.get_buy_vol())  # default if not given
-
+                # self.buy(exectype=bt.Order.Market)  # default if not given
                 self.log('BUY CREATE, exectype Market, price %.2f' %
                          self.data.close[0])
 
@@ -110,7 +113,7 @@ class CdmaCross(bt.Strategy):
                 if self.dif[-1] > 0:
                     # SELL, SELL, SELL!!! (with all possible default parameters)
                     self.sell(exectype=bt.Order.Market, size=self.get_sell_vol())  # default if not given
-
+                    # self.sell(exectype=bt.Order.Market)  # default if not given
                     self.log('SELL CREATE, exectype Market, price %.2f' %
                              self.data.close[0])
                     # self.log('SELL CREATE, %.2f' % self.dataclose[0])
@@ -227,17 +230,18 @@ class CdmaCross(bt.Strategy):
     #     print('ROI:        {:.2f}%'.format(100.0 * self.roi))
 
     # 计算应持仓位（头寸）
-    def get_position(self):
+    def get_upper_assert_share(self):
         _cash = self.broker.get_cash()
-        _vol = self.broker.get_value()
-        _close = self.data.close[0]
+        _position_volume = self.position.size
+        _position_price = self.position.price
 
-        _investment = _vol * _close
+        _position = self.getposition()
+        _hold_value = _position_price * _position_volume
         # 总资产
-        total_assert = _cash + _investment
+        total_assert = self.broker.get_value()
 
         # 投资占头寸的上限
-        if self.dea > 0 and self.dif >0:
+        if self.dea > 0 and self.dif > 0:
             self.invest_per = 1.00
 
         elif self.dea < 0 < self.dif:
@@ -255,20 +259,27 @@ class CdmaCross(bt.Strategy):
 
     def get_buy_vol(self):
         buy_vol = 0
+        _position_volume = self.position.size
+        _position_price = self.position.price
+        _hold_value = _position_price * _position_volume
+
         _cash = self.broker.get_cash()
-        _vol = self.broker.get_value()
+        # _vol = self.broker.get_value()
         _close = self.data.close[0]
-        _position =  self.get_position()
+        # _position =  self.get_position()
 
         if _cash > 0:
-            available_fund = _position - _vol * _close
+            available_fund = self.get_upper_assert_share() - _hold_value
             buy_vol = available_fund/_close
         return buy_vol
 
     def get_sell_vol(self):
         sell_vol = 0
-        if self.broker.get_value() > 0:
-            available_vol = self.broker.get_value() * self.data.close[0] - self.get_position()
+        _position_volume = self.position.size
+        _position_price = self.position.price
+        _hold_value = _position_price * _position_volume
+        if _position_volume > 0:
+            available_vol = _hold_value - self.get_upper_assert_share()
             sell_vol = available_vol/self.data.close[0]
         return sell_vol
 
@@ -320,7 +331,7 @@ if __name__ == '__main__':
     cerebro.broker.setcash(100000.0)
 
     # Add a FixedSize sizer according to the stake
-    # cerebro.addsizer(bt.sizers.FixedSize, stake=10)
+    cerebro.addsizer(bt.sizers.FixedSize, stake=10)
 
     # Set the commission
     cerebro.broker.setcommission(commission=0.0)
