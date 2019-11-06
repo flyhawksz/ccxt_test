@@ -80,12 +80,15 @@ class CdmaCross(bt.Strategy):
                                                        self.position.size * self.position.price))
                 self.log(
                     'BUY CREATE, exectype Market, price {}， size {}'.format(self.data.close[0], self.get_buy_vol()))
-            elif self.my_macd > 0:
-                self.buy(exectype=bt.Order.Market, size=self.get_buy_vol())  # default if not given
-                self.log('macd为正，可用头寸：{}，已持仓位：{}'.format(self.get_buy_position(),
+            elif self.my_macd[0] > 0:
+                # if self.my_macd[0] > self.my_macd[-1]:
+
+                if self.get_buy_vol() > 0:
+                    self.buy(exectype=bt.Order.Market, size=self.get_buy_vol())  # default if not given
+                    self.log('macd为正，可用头寸：{}，已持仓位：{}'.format(self.get_buy_position(),
                                                        self.position.size * self.position.price))
-                self.log(
-                    'BUY CREATE, exectype Market, price {}， size {}'.format(self.data.close[0], self.get_buy_vol()))
+                    self.log(
+                        'BUY CREATE, exectype Market, price {}， size {}'.format(self.data.close[0], self.get_buy_vol()))
 
         if self.get_sell_position() > 0:
 
@@ -111,11 +114,11 @@ class CdmaCross(bt.Strategy):
                 self.log('SELL CREATE, exectype Market, price{}, size {}'.format(self.data.close[0], self.get_sell_vol()))
 
             elif self.my_macd < 0:
-                self.sell(exectype=bt.Order.Market, size=self.get_sell_vol())  # default if not given
-                self.log('madc为负，可用头寸：{}，已持仓位：{}'.format(self.get_sell_position(),
+                if self.get_sell_vol() > 0:
+                    self.sell(exectype=bt.Order.Market, size=self.get_sell_vol())  # default if not given
+                    self.log('madc为负，可用头寸：{}，已持仓位：{}'.format(self.get_sell_position(),
                                                        self.position.size * self.position.price))
-                self.log('SELL CREATE, exectype Market, price{}, size {}'.format(self.data.close[0], self.get_sell_vol()))
-
+                    self.log('SELL CREATE, exectype Market, price{}, size {}'.format(self.data.close[0], self.get_sell_vol()))
 
     def notify_order(self, order):
         if order.status in [order.Submitted, order.Accepted]:
@@ -176,24 +179,29 @@ class CdmaCross(bt.Strategy):
     def get_upper_percent(self):
         # 投资占头寸的上限
         _invest_per = 0
-        # 1.牛牛
-        if self.dif > self.dea >= 0:
-            _invest_per = 1.00
-        # 2.半牛
-        elif self.dea > self.dif >= 0:
-            _invest_per = 0.75
-        # 3.牛调
-        elif self.dea >= 0 and self.dif < 0:
+        # 牛
+        if self.dea >= 0:
             _invest_per = 0.5
-        # 4.熊牛
-        elif self.dea < 0 < self.dif:
-            _invest_per = 0.25
-        # 5.熊熊牛
-        elif self.dea < self.dif < 0:
+            # 1.牛牛
+            if self.dif > self.dea >= 0:
+                _invest_per = 1.00
+            # 2.牛调
+            elif self.dea > self.dif >= 0:
+                _invest_per = 0.75
+            elif self.dif < 0:
+                _invest_per = 0.5
+        # 熊
+        elif self.dea < 0:
             _invest_per = 0.1
-        # 6.熊熊熊
-        elif self.dif < self.dea < 0:
-            _invest_per = 0
+            # 4.熊牛
+            if self.dif > 0:
+                _invest_per = 0.35
+            # 5.熊熊牛
+            elif self.dea < self.dif < 0:
+                _invest_per = 0.15
+            # 6.熊熊熊
+            elif self.dif < self.dea < 0:
+                _invest_per = 0
         else:
             _invest_per = 0
 
@@ -226,7 +234,10 @@ class CdmaCross(bt.Strategy):
 
         if _cash > 0:
             available_fund = _position - _vol * _price
-            buy_vol = math.floor(available_fund/_close)
+            if _cash > available_fund > 0:
+                buy_vol = math.floor(available_fund/_close)
+            elif available_fund > _cash:
+                buy_vol = math.floor(_cash/_close)
         return buy_vol
 
     def get_sell_vol(self):
