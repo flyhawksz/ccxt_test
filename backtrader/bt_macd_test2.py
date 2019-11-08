@@ -85,8 +85,6 @@ class CdmaCross(bt.Strategy):
         # self.log('dif cross zero:{},{} dea cross zero: {},{}'.format(
         #     self.dif_cross_up, self.dif_cross_down, self.dea_cross_up, self.dea_cross_down))
 
-        # if self.get_buy_volume() > 0:
-
         if self.macd_cross[0] > 0:
             buy_flag = 1
             self.small_adjust = 0
