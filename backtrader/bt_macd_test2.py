@@ -75,6 +75,7 @@ class CdmaCross(bt.Strategy):
         self.order = None  # sentinel to avoid operrations on pending order
 
     def next(self):
+        buy_flag = None
         # update postion percentage
         self.update_position()
 
@@ -87,91 +88,76 @@ class CdmaCross(bt.Strategy):
         # if self.get_buy_volume() > 0:
 
         if self.macd_cross[0] > 0:
+            buy_flag = 1
             self.small_adjust = 0
-            self.buy(exectype=bt.Order.Market, size=self.get_buy_volume())  # default if not given
             self.log('出现金叉，可用头寸：{}，已持仓位：{}'.format(
                 self.buy_position, self.position.size * self.data.close[0]))
-            self.log('BUY CREATE, exectype Market, price {}， size {}'.format(
-                self.data.close[0], self.get_buy_volume()))
         elif self.dif_cross_up[0] > 0:
+            buy_flag = 1
             self.small_adjust = 0
-            self.buy(exectype=bt.Order.Market, size=self.buy_position)  # default if not given
-            self.log('DIF上穿零轴，可用头寸：{}，已持仓位：{}'.format(self.buy_position,
-                                                      self.position.size * self.data.close[0]))
-            self.log('BUY CREATE, exectype Market, price {}， size {}'.format(
-                self.data.close[0], self.get_buy_volume()))
-
+            self.log('DIF上穿零轴，可用头寸：{}，已持仓位：{}'.format(
+                self.buy_position, self.position.size * self.data.close[0]))
         elif self.dea_cross_up[0] > 0:
+            buy_flag = 1
             self.small_adjust = 0
-            self.buy(exectype=bt.Order.Market, size=self.get_buy_volume())  # default if not given
             self.log('DEA上穿零轴，可用头寸：{}，已持仓位：{}'.format(
                 self.buy_position, self.position.size * self.data.close[0]))
-            self.log(
-                'BUY CREATE, exectype Market, price {}， size {}'.format(
-                    self.data.close[0], self.get_buy_volume()))
-
         # macd 为正，多头。如正得越来越多，以buy_percentage 为基础，不断增加头寸。但不超过本档上限
         #                 如果正得越来越少，已不buy_percentage 为基础，逐渐头寸。但不超过本档下限
-        elif self.my_macd[0] >= self.my_macd[-1]:  # 持续增
-            self.small_adjust = self.small_adjust + 0.02
-            if self.get_buy_volume() > self.data.close[0]:
-                self.buy(exectype=bt.Order.Market, size=self.get_buy_volume())  # default if not given
-                self.log('macd为正，可用头寸：{}，已持仓位：{}'.format(self.buy_position,
-                                                   self.position.size * self.data.close[0]))
-                self.log(
-                    'BUY CREATE, exectype Market, price {}， size {}'.format(
-                        self.data.close[0], self.get_buy_volume()))
+        elif self.my_macd > 0:
+            if self.my_macd[0] >= self.my_macd[-1]:  # 持续增
+                self.small_adjust = self.small_adjust + 0.02
+                if self.get_buy_volume() > self.data.close[0]:
+                    buy_flag = 1
+                    self.log('macd为正递增，可用头寸：{}，已持仓位：{}'.format(
+                        self.buy_position, self.position.size * self.data.close[0]))
             elif self.my_macd[0] < self.my_macd[-1]:
+                self.small_adjust = self.small_adjust - 0.02
                 if self.get_sell_volume() > self.data.close[0]:
-                    self.sell(exectype=bt.Order.Market, size=self.get_sell_volume())  # default if not given
-                    self.log('madc为负，可用头寸：{}，已持仓位：{}'.format(self.sell_position,
-                                                             self.position.size * self.data.close[0]))
-                    self.log('SELL CREATE, exectype Market, price{}, size {}'.format(self.data.close[0],
-                                                                                     self.get_sell_volume()))
-
-        # if self.get_sell_volume() > 0:
+                    buy_flag = 0
+                    self.log('madc为正递减，可用头寸：{}，已持仓位：{}'.format(
+                        self.sell_position, self.position.size * self.data.close[0]))
 
         if self.macd_cross[0] < 0:
             # 当跨档时，微调清零
             self.small_adjust = 0
-            self.sell(exectype=bt.Order.Market, size=self.get_sell_volume())  # default if not given
-            self.log('出现死叉，可用头寸：{}，已持仓位：{}'.format(self.sell_position,
-                                                   self.position.size * self.data.close[0]))
-            self.log('SELL CREATE, exectype Market, price{}, size {}'.format(
-                self.data.close[0], self.get_sell_volume()))
-
+            buy_flag = 0
+            self.log('出现死叉，可用头寸：{}，已持仓位：{}'.format(
+                self.sell_position, self.position.size * self.data.close[0]))
         elif self.dif_cross_down[0] > 0:
             self.small_adjust = 0
-            self.sell(exectype=bt.Order.Market, size=self.get_sell_volume())  # default if not given
-            self.log('DIF下穿零轴，可用头寸：{}，已持仓位：{}'.format(self.sell_position,
-                                                   self.position.size * self.data.close[0]))
-            self.log('SELL CREATE, exectype Market, price{}, size {}'.format(
-                self.data.close[0], self.get_sell_volume()))
-
+            buy_flag = 0
+            self.log('DIF下穿零轴，可用头寸：{}，已持仓位：{}'.format(
+                self.sell_position, self.position.size * self.data.close[0]))
         elif self.dea_cross_down[0] > 0:
             self.small_adjust = 0
-            self.sell(exectype=bt.Order.Market, size=self.get_sell_volume())  # default if not given
-            self.log('DEA下穿零轴，可用头寸：{}，已持仓位：{}'.format(self.sell_position,
-                                                   self.position.size * self.data.close[0]))
-            self.log('SELL CREATE, exectype Market, price{}, size {}'.format(
-                self.data.close[0], self.get_sell_volume()))
-
+            buy_flag = 0
+            self.log('DEA下穿零轴，可用头寸：{}，已持仓位：{}'.format(
+                self.sell_position, self.position.size * self.data.close[0]))
         # macd 为负，空头。如负得越来越多，已sell_percentage 为基础，不断减少头寸。
         elif self.my_macd[0] < 0:
-            if self.my_macd[0] > self.my_macd[-1]:
-                if self.get_buy_volume() > self.data.close[0]:
-                    self.buy(exectype=bt.Order.Market, size=self.get_buy_vol())  # default if not given
-                    self.log('macd持续增，可用头寸：{}，已持仓位：{}'.format(self.sell_position,
-                                                       self.position.size * self.data.close[0]))
-                    self.log('BUY CREATE, exectype Market, price {}， size {}'.format(self.data.close[0],
-                                                                                     self.get_buy_vol()))
-            elif self.my_macd[0] < self.my_macd[-1]:
+            # if self.my_macd[0] > self.my_macd[-1]:
+            #     if self.get_buy_volume() > self.data.close[0]:
+            #         buy_flag = 1
+            #         self.small_adjust = self.small_adjust + 0.02
+            #         self.buy(exectype=bt.Order.Market, size=self.get_buy_vol())  # default if not given
+            #         self.log('macd持续增，可用头寸：{}，已持仓位：{}'.format(self.sell_position,
+            #                                            self.position.size * self.data.close[0]))
+            if self.my_macd[0] < self.my_macd[-1]:
                 if self.get_sell_volume() > self.data.close[0]:
-                    self.sell(exectype=bt.Order.Market, size=self.get_sell_volume())  # default if not given
-                    self.log('madc持续减，可用头寸：{}，已持仓位：{}'.format(self.sell_position,
-                                                             self.position.size * self.data.close[0]))
-                    self.log('SELL CREATE, exectype Market, price{}, size {}'.format(self.data.close[0],
-                                                                                     self.get_sell_vol()))
+                    buy_flag = 0
+                    self.small_adjust = self.small_adjust + 0.02
+                    self.log('madc为负递减，持续卖，可用头寸：{}，已持仓位：{}'.format(
+                        self.sell_position, self.position.size * self.data.close[0]))
+
+        if buy_flag:
+            self.buy(exectype=bt.Order.Market, size=self.get_buy_vol())  # default if not given
+            self.log('BUY CREATE, exectype Market, price {}， size {}'.format(
+                self.data.close[0], self.get_buy_volume()))
+        else:
+            self.sell(exectype=bt.Order.Market, size=self.get_sell_volume())  # default if not given
+            self.log('SELL CREATE, exectype Market, price{}, size {}'.format(
+                self.data.close[0], self.get_sell_volume()))
 
     def notify_order(self, order):
         if order.status in [order.Submitted, order.Accepted]:
