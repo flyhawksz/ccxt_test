@@ -22,6 +22,9 @@ class CdmaCross(bt.Strategy):
         ('atrdist', 3.0),   # ATR distance for stop price
         ('smaperiod', 30),  # SMA Period (pretty standard)
         ('dirperiod', 10),  # Lookback period to consider SMA trend direction
+        ("psar_period", 2),
+        ("af", 0.02),
+        ("afmax", 0.2)
     )
 
     def log(self, txt, dt=None):
@@ -30,12 +33,13 @@ class CdmaCross(bt.Strategy):
         print('%s, %s' % (dt.isoformat(), txt))
 
     def __init__(self):
-        self.bull_percentage = {'空多': 0.25, '上零轴快': 0.50, '上零轴慢': 0.75, '多多': 1.00}
-        self.bear_percentage = {'空空': 0.00, '零轴空慢': 0.15, '零轴空快': 0.35, '多空': 0.50}
+        self.bull_percentage = [0.25, 0.50, 0.75, 1.00]
+        self.bear_percentage = [0.00, 0.15, 0.35, 0.50]
         self.macd = bt.indicators.MACD(self.data,
                                        period_me1=self.p.macd1,
                                        period_me2=self.p.macd2,
                                        period_signal=self.p.macdsig)
+        self.sar = bt.ind.PSAR(self.data, period=self.p.psar_period, af=self.p.af, afmax=self.p.afmax)
 
         # Keep a reference to the "close" line in the data[0] dataseries
         self.dataclose = self.datas[0].close
@@ -61,7 +65,7 @@ class CdmaCross(bt.Strategy):
         self.dea_cross_up = bt.indicators.CrossUp(self.dea, 0)
         self.dea_cross_down = bt.indicators.CrossDown(self.dea, 0)
 
-
+        self.small_adjust = 0
         self.buy_position = 0
         self.buy_position_percentage = 0
         self.sell_position = 0
@@ -83,12 +87,14 @@ class CdmaCross(bt.Strategy):
         # if self.get_buy_volume() > 0:
 
         if self.macd_cross[0] > 0:
+            self.small_adjust = 0
             self.buy(exectype=bt.Order.Market, size=self.get_buy_volume())  # default if not given
             self.log('出现金叉，可用头寸：{}，已持仓位：{}'.format(
-            self.buy_position, self.position.size * self.data.close[0]))
+                self.buy_position, self.position.size * self.data.close[0]))
             self.log('BUY CREATE, exectype Market, price {}， size {}'.format(
                 self.data.close[0], self.get_buy_volume()))
         elif self.dif_cross_up[0] > 0:
+            self.small_adjust = 0
             self.buy(exectype=bt.Order.Market, size=self.buy_position)  # default if not given
             self.log('DIF上穿零轴，可用头寸：{}，已持仓位：{}'.format(self.buy_position,
                                                       self.position.size * self.data.close[0]))
@@ -96,31 +102,38 @@ class CdmaCross(bt.Strategy):
                 self.data.close[0], self.get_buy_volume()))
 
         elif self.dea_cross_up[0] > 0:
+            self.small_adjust = 0
             self.buy(exectype=bt.Order.Market, size=self.get_buy_volume())  # default if not given
-            self.log('DEA上穿零轴，可用头寸：{}，已持仓位：{}'.format(self.buy_position,
-                                                   self.position.size * self.data.close[0]))
+            self.log('DEA上穿零轴，可用头寸：{}，已持仓位：{}'.format(
+                self.buy_position, self.position.size * self.data.close[0]))
             self.log(
-                'BUY CREATE, exectype Market, price {}， size {}'.format(self.data.close[0], self.get_buy_volume()))
-        # elif self.my_macd[0] > 0:
-        #     if self.my_macd[0] > self.my_macd[-1]:
-        #         if self.get_buy_volume() > self.data.close[0]:
-        #             self.buy(exectype=bt.Order.Market, size=self.get_buy_volume())  # default if not given
-        #             self.log('macd为正，可用头寸：{}，已持仓位：{}'.format(self.buy_position,
-        #                                                self.position.size * self.data.close[0]))
-        #             self.log(
-        #                 'BUY CREATE, exectype Market, price {}， size {}'.format(
-        #                     self.data.close[0], self.get_buy_volume()))
-        #     elif self.my_macd[0] < self.my_macd[-1]:
-        #         if self.get_sell_volume() > self.data.close[0]:
-        #             self.sell(exectype=bt.Order.Market, size=self.get_sell_volume())  # default if not given
-        #             self.log('madc为负，可用头寸：{}，已持仓位：{}'.format(self.sell_position,
-        #                                                      self.position.size * self.data.close[0]))
-        #             self.log('SELL CREATE, exectype Market, price{}, size {}'.format(self.data.close[0],
-        #                                                                              self.get_sell_volume()))
+                'BUY CREATE, exectype Market, price {}， size {}'.format(
+                    self.data.close[0], self.get_buy_volume()))
+
+        # macd 为正，多头。如正得越来越多，以buy_percentage 为基础，不断增加头寸。但不超过本档上限
+        #                 如果正得越来越少，已不buy_percentage 为基础，逐渐头寸。但不超过本档下限
+        elif self.my_macd[0] >= self.my_macd[-1]:  # 持续增
+            self.small_adjust = self.small_adjust + 0.02
+            if self.get_buy_volume() > self.data.close[0]:
+                self.buy(exectype=bt.Order.Market, size=self.get_buy_volume())  # default if not given
+                self.log('macd为正，可用头寸：{}，已持仓位：{}'.format(self.buy_position,
+                                                   self.position.size * self.data.close[0]))
+                self.log(
+                    'BUY CREATE, exectype Market, price {}， size {}'.format(
+                        self.data.close[0], self.get_buy_volume()))
+            elif self.my_macd[0] < self.my_macd[-1]:
+                if self.get_sell_volume() > self.data.close[0]:
+                    self.sell(exectype=bt.Order.Market, size=self.get_sell_volume())  # default if not given
+                    self.log('madc为负，可用头寸：{}，已持仓位：{}'.format(self.sell_position,
+                                                             self.position.size * self.data.close[0]))
+                    self.log('SELL CREATE, exectype Market, price{}, size {}'.format(self.data.close[0],
+                                                                                     self.get_sell_volume()))
 
         # if self.get_sell_volume() > 0:
 
         if self.macd_cross[0] < 0:
+            # 当跨档时，微调清零
+            self.small_adjust = 0
             self.sell(exectype=bt.Order.Market, size=self.get_sell_volume())  # default if not given
             self.log('出现死叉，可用头寸：{}，已持仓位：{}'.format(self.sell_position,
                                                    self.position.size * self.data.close[0]))
@@ -128,6 +141,7 @@ class CdmaCross(bt.Strategy):
                 self.data.close[0], self.get_sell_volume()))
 
         elif self.dif_cross_down[0] > 0:
+            self.small_adjust = 0
             self.sell(exectype=bt.Order.Market, size=self.get_sell_volume())  # default if not given
             self.log('DIF下穿零轴，可用头寸：{}，已持仓位：{}'.format(self.sell_position,
                                                    self.position.size * self.data.close[0]))
@@ -135,27 +149,29 @@ class CdmaCross(bt.Strategy):
                 self.data.close[0], self.get_sell_volume()))
 
         elif self.dea_cross_down[0] > 0:
+            self.small_adjust = 0
             self.sell(exectype=bt.Order.Market, size=self.get_sell_volume())  # default if not given
             self.log('DEA下穿零轴，可用头寸：{}，已持仓位：{}'.format(self.sell_position,
                                                    self.position.size * self.data.close[0]))
             self.log('SELL CREATE, exectype Market, price{}, size {}'.format(
                 self.data.close[0], self.get_sell_volume()))
 
-        # elif self.my_macd[0] < 0:
-        #     if self.my_macd[0] > self.my_macd[-1]:
-        #         if self.get_buy_volume() > self.data.close[0]:
-        #             self.buy(exectype=bt.Order.Market, size=self.get_buy_vol())  # default if not given
-        #             self.log('macd持续增，可用头寸：{}，已持仓位：{}'.format(self.sell_position,
-        #                                                self.position.size * self.data.close[0]))
-        #             self.log('BUY CREATE, exectype Market, price {}， size {}'.format(self.data.close[0],
-        #                                                                              self.get_buy_vol()))
-        #     elif self.my_macd[0] < self.my_macd[-1]:
-        #         if self.get_sell_volume() > self.data.close[0]:
-        #             self.sell(exectype=bt.Order.Market, size=self.get_sell_volume())  # default if not given
-        #             self.log('madc持续减，可用头寸：{}，已持仓位：{}'.format(self.sell_position,
-        #                                                      self.position.size * self.data.close[0]))
-        #             self.log('SELL CREATE, exectype Market, price{}, size {}'.format(self.data.close[0],
-        #                                                                              self.get_sell_vol()))
+        # macd 为负，空头。如负得越来越多，已sell_percentage 为基础，不断减少头寸。
+        elif self.my_macd[0] < 0:
+            if self.my_macd[0] > self.my_macd[-1]:
+                if self.get_buy_volume() > self.data.close[0]:
+                    self.buy(exectype=bt.Order.Market, size=self.get_buy_vol())  # default if not given
+                    self.log('macd持续增，可用头寸：{}，已持仓位：{}'.format(self.sell_position,
+                                                       self.position.size * self.data.close[0]))
+                    self.log('BUY CREATE, exectype Market, price {}， size {}'.format(self.data.close[0],
+                                                                                     self.get_buy_vol()))
+            elif self.my_macd[0] < self.my_macd[-1]:
+                if self.get_sell_volume() > self.data.close[0]:
+                    self.sell(exectype=bt.Order.Market, size=self.get_sell_volume())  # default if not given
+                    self.log('madc持续减，可用头寸：{}，已持仓位：{}'.format(self.sell_position,
+                                                             self.position.size * self.data.close[0]))
+                    self.log('SELL CREATE, exectype Market, price{}, size {}'.format(self.data.close[0],
+                                                                                     self.get_sell_vol()))
 
     def notify_order(self, order):
         if order.status in [order.Submitted, order.Accepted]:
@@ -214,7 +230,7 @@ class CdmaCross(bt.Strategy):
 
     def update_position(self):
         _value = self.broker.get_value()
-        self.sell_position_percentage =  self.get_lower_percent()
+        self.sell_position_percentage = self.get_lower_percent()
         self.sell_position = _value* self.sell_position_percentage
         self.buy_position_percentage = self.get_upper_percent()
         self.buy_position = _value* self.buy_position_percentage
@@ -223,15 +239,18 @@ class CdmaCross(bt.Strategy):
     def get_upper_percent(self):
         # 投资占头寸的上限
         _invest_per = 0
+        _per = 0
         # 牛
         if 0 > self.dif > self.dea:
-            _invest_per = self.bull_percentage['空多']
+            _per = 0
         elif self.dif > 0 > self.dea:
-            _invest_per = self.bull_percentage['上零轴快']
+            _per = 1
         elif self.dea >= 0:
-            _invest_per = self.bull_percentage['上零轴慢']
-            if self.dif > self.dea:
-                _invest_per = self.bull_percentage['多多']
+            _per = 2
+            # if self.dif > self.dea:
+            #     _invest_per = self.bull_percentage['多多']
+
+        _invest_per = self.bull_percentage[_per]
 
         return _invest_per
 
@@ -239,15 +258,18 @@ class CdmaCross(bt.Strategy):
     def get_lower_percent(self):
         # 投资占头寸的上限
         _invest_per = 0
+        _per = 0
         # 牛
         if self.dea > self.dif > 0:
-            _invest_per = self.bear_percentage['多空']
+            _per = 0
         elif self.dea > 0 > self.dif:
-            _invest_per = self.bear_percentage['零轴空快']
+            _per = 1
         elif self.dea < 0:
-            _invest_per = self.bear_percentage['零轴空慢']
-            if self.dea > self.dif:
-                _invest_per = self.bear_percentage['空空']
+            _per = 2
+            # if self.dea > self.dif:
+            #     _invest_per = self.bear_percentage[3]
+
+        _invest_per = self.bear_percentage[_per]
 
         return _invest_per
 
