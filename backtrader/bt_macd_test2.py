@@ -294,47 +294,6 @@ class CdmaCross(bt.Strategy):
 
         return _invest_per
 
-    # # 做多时，可买的头寸，数量
-    # def get_buy_volume(self):
-    #     buy_volume = 0
-    #     buy_position = 0
-    #     _value = self.broker.get_value()
-    #     _cash = self.broker.get_cash()
-    #     _volume = self.position.size
-    #     _price = self.position.price
-    #     _close = self.data.close[0]
-    #     _percentage = self.buy_position_percentage
-    #     self.log('Buy percentage is {}%'.format(_percentage*100))
-    #
-    #     # 现金仍有头寸
-    #     if _cash > 0:
-    #         # 可买金额
-    #         available_cash = _value * _percentage - _volume * _close
-    #         if available_cash > 0:
-    #             if available_cash > _cash:
-    #                 available_cash = _cash
-    #             buy_volume = math.floor(available_cash/_close)
-    #     return buy_volume
-    #
-    # # 做空时，要卖的头寸，数量
-    # def get_sell_volume(self):
-    #     sell_volume = 0
-    #     _value = self.broker.get_value()
-    #     _cash = self.broker.get_cash()
-    #     _volume = self.position.size
-    #     _price = self.position.price
-    #     _close = self.data.close[0]
-    #     _percentage = self.sell_position_percentage
-    #     self.log('Sell percentage is {}%'.format(_percentage*100))
-    #
-    #     if _volume > 0:
-    #         should_sell_cash = _volume * _close - _value * _percentage
-    #         if should_sell_cash > 0:
-    #             sell_volume = math.floor(should_sell_cash/_close)
-    #         if sell_volume > _volume:
-    #             sell_volume = _volume
-    #     return sell_volume
-
     # 具体生成买卖数量
     # operateion:0,1,2,3, 买，卖，熊市增持，牛市减持
     def get_operate_volume(self, operation):
