@@ -34,7 +34,7 @@ class CdmaCross(bt.Strategy):
 
     def __init__(self):
         self.bull_percentage = [0.25, 0.50, 0.75, 1.00]
-        self.bear_percentage = [0.00, 0.15, 0.35, 0.50]
+        self.bear_percentage = [0.00, 0.10, 0.20, 0.30]
 
         self.macd = bt.indicators.MACD(self.data,
                                        period_me1=self.p.macd1,
@@ -84,10 +84,11 @@ class CdmaCross(bt.Strategy):
         buy_flag = None
         operate_volume = 0
 
-
-
         if self.order:
             return  # pending order execution
+
+        if self.data.close == 0:
+            return  # 数据错误
 
         # self.log('dif cross zero:{},{} dea cross zero: {},{}'.format(
         #     self.dif_cross_up, self.dif_cross_down, self.dea_cross_up, self.dea_cross_down))
@@ -361,6 +362,12 @@ class maxRiskSizer(bt.Sizer):
 
 
 if __name__ == '__main__':
+    # 数据来源，用自带的数据（0），还是用中国股市数据（1）
+    data_source = 1
+    data_path = os.path.join(os.getcwd(), 'datas')
+    data_file_name = '600100.csv'
+    data_file_path = ''
+
     # Create a cerebro entity
     cerebro = bt.Cerebro()
 
@@ -370,16 +377,31 @@ if __name__ == '__main__':
 
     # Datas are in a subfolder of the samples. Need to find where the script is
     # because it could have been called from anywhere
+    if data_source == 1:
+        data_path = os.path.join(data_path, 'stock_history')
+        # if not os.path.exists(modpath):
+        #     os.makedirs(modpath)
 
-    modpath = os.path.join(os.getcwd(), 'datas')
-    if not os.path.exists(modpath):
-        os.makedirs(modpath)
-    datapath = os.path.join(modpath, '601857-2007-2019.csv')
+        data_file_path = os.path.join(data_path, data_file_name)
 
-    dataframe = pd.read_csv(datapath, index_col=0, parse_dates=True)
-    dataframe['openinterest'] = 0
-    data = bt.feeds.PandasData(dataname=dataframe,
-                               fromdate=datetime.datetime(2018, 1, 1),
+        df = pd.read_csv(data_file_path, header=0, encoding='gbk', parse_dates=True)
+        # print(df.columns)
+        # columns = df.columns.values.tolist()  # 获取列名列表，注意values，tolist的使用
+        # new_df = df.sort_values('日期', ascending=True)
+        # print(new_df)
+        col_n = ['日期', '开盘价', '收盘价', '最高价', '最低价', '成交量']
+        data_df = pd.DataFrame(df, columns=col_n)
+        data_df.columns = ['date', 'open', 'close', 'high', 'low', 'volume']
+        data_df = data_df.sort_values('date', ascending=True)
+        data_df = data_df.set_index('date')
+    else:
+        data_file_path = os.path.join(data_path, data_file_name)
+        data_df = pd.read_csv(data_file_path, index_col=0, parse_dates=True)
+
+    print(data_df)
+    data_df['openinterest'] = 0
+    data = bt.feeds.PandasData(dataname=data_df,
+                               fromdate=datetime.datetime(2017, 10, 1),
                                todate=datetime.datetime(2019, 10, 31)
                                )
 
