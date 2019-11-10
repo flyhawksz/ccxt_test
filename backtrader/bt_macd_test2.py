@@ -393,6 +393,7 @@ if __name__ == '__main__':
         data_df = pd.DataFrame(df, columns=col_n)
         data_df.columns = ['date', 'open', 'close', 'high', 'low', 'volume']
         data_df = data_df.sort_values('date', ascending=True)
+        data_df['date'] = pd.to_datetime(data_df['date'])
         data_df = data_df.set_index('date')
     else:
         data_file_path = os.path.join(data_path, data_file_name)
