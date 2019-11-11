@@ -50,7 +50,10 @@ class CdmaCross(bt.Strategy):
         # self.K = bt.indicators.StochasticFast(self.data)
         # self.kdj = bt.indicators.StochasticFull(self.data)
 
-        self.dif = bt.indicators.EMA(self.data, period=self.p.macd1) - bt.indicators.EMA(self.data, period=self.p.macd2)
+        self.EMA12 = bt.indicators.EMA(self.data, period=self.p.macd1)
+        self.EMA26 = bt.indicators.EMA(self.data, period=self.p.macd2)
+
+        self.dif = self.EMA12 - self.EMA26
         self.dea = bt.indicators.EMA(self.dif, period=self.p.macdsig)
         self.my_macd = self.dif - self.dea
 
@@ -64,11 +67,13 @@ class CdmaCross(bt.Strategy):
         self.dea_cross_down = bt.indicators.CrossDown(self.dea, 0)
 
         self.buy_level = 0
+        self.buy_small_adjust_step = 0.01
         self.buy_small_adjust = 0
         self.buy_position = 0
         self.buy_position_percentage = 0
 
         self.sell_level = 0
+        self.sell_small_adjust_step = 0.01
         self.sell_small_adjust = 0
         self.sell_position = 0
         self.sell_position_percentage = 0
@@ -111,19 +116,46 @@ class CdmaCross(bt.Strategy):
             # 用SAR指标来辨别MACD反复交叉
             if self.my_macd[0] >= self.my_macd[-1]:  # 持续增,
                 if self.sar < self.data.low:  # 保持多头，且未变向，可以增持
-                    self.buy_small_adjust = self.buy_small_adjust + 0.02
+                    self.buy_small_adjust = self.buy_small_adjust + self.buy_small_adjust_step
                     buy_flag = 0
                     self.log('macd为正递增')
                 elif self.sar > self.data.high:  # 翻转，MACD增加无效，不处理
                     pass
             elif self.my_macd[0] < self.my_macd[-1]:  # 红柱递减
                 if self.sar > self.data.low:  # 反转
-                    self.buy_small_adjust = self.buy_small_adjust - 0.02
+                    self.buy_small_adjust = self.buy_small_adjust - self.buy_small_adjust_step
                     buy_flag = 3  # 牛市减持
                     self.log('madc为正递减，减持')
                 elif self.sar < self.data.low:
                     # 仍是多头，未反转，不处理
                     pass
+
+        # if self.macd_cross[0] < 0:
+        #     if self.EMA12 >= self.EMA26:
+        #         #  当仍多头时，死叉无效
+        #         self.log('出现无效死叉')
+        #         pass
+        #     else:
+        #         # 当跨档时，微调清零
+        #         self.sell_small_adjust = 0
+        #         buy_flag = 1
+        #         self.log('出现死叉')
+        # elif self.dif_cross_down[0] > 0:
+        #     if self.EMA12 >= self.EMA26:
+        #         self.log('DIF无效下穿零轴')
+        #         pass
+        #     else:
+        #         self.sell_small_adjust = 0
+        #         buy_flag = 1
+        #         self.log('DIF下穿零轴')
+        # elif self.dea_cross_down[0] > 0:
+        #     if self.EMA12 >= self.EMA26:
+        #         self.log('DEA无效下穿零轴')
+        #         pass
+        #     else:
+        #         self.sell_small_adjust = 0
+        #         buy_flag = 1
+        #         self.log('DEA下穿零轴')
 
         if self.macd_cross[0] < 0:
             # 当跨档时，微调清零
@@ -143,7 +175,7 @@ class CdmaCross(bt.Strategy):
             if self.my_macd[0] > self.my_macd[-1]:
                 if self.sar < self.data.low:
                     buy_flag = 2  # 熊市增持
-                    self.sell_small_adjust = self.sell_small_adjust + 0.02
+                    self.sell_small_adjust = self.sell_small_adjust + self.sell_small_adjust_step
                     self.log('madc为负缩小，可增持少量')
                 else:
                     #  仍是空头，未反转，不处理
@@ -151,7 +183,7 @@ class CdmaCross(bt.Strategy):
             elif self.my_macd[0] < self.my_macd[-1]:
                 if self.sar > self.data.high:
                     buy_flag = 1
-                    self.sell_small_adjust = self.sell_small_adjust - 0.02
+                    self.sell_small_adjust = self.sell_small_adjust - self.sell_small_adjust_step
                     self.log('madc为负扩大，持续卖')
                 else:
                     pass
@@ -342,38 +374,19 @@ class CdmaCross(bt.Strategy):
         return operate_volume
 
 
-class maxRiskSizer(bt.Sizer):
-    params = (('risk', 20),)
-
-    def __init__(self):
-        if self.p.risk > 1 or self.p.risk < 0:
-            raise ValueError('The risk parameter is a percentage which must be entered as a float. e.g. 0.5')
-
-    def _getsizing(self, comminfo, cash, data, isbuy):
-
-        position = self.broker.getposition(data)
-
-        if not position:
-            size = math.floor((cash * self.p.risk) / data.close[0])
-        else:
-            size = position.size
-
-        return size
-
-
 if __name__ == '__main__':
-    # 数据来源，用自带的数据（0），还是用中国股市数据（1）
+    # 获取数据来源方式：0 yahoo online; 1 local data file
+    data_method = 0
+    # 数据文件来源，用自带的数据（0），还是用中国股市数据（1）
     data_source = 1
     data_path = os.path.join(os.getcwd(), 'datas')
-    data_file_name = '600100.csv'
+    data_file_name = '600177.csv'
     data_file_path = ''
+    yahoo_stock_code = 'AZO'
 
     # Create a cerebro entity
     cerebro = bt.Cerebro()
 
-    # Add a strategy
-    # cerebro.addstrategy(SmaCross)
-    cerebro.addstrategy(CdmaCross)
 
     # Datas are in a subfolder of the samples. Need to find where the script is
     # because it could have been called from anywhere
@@ -399,15 +412,27 @@ if __name__ == '__main__':
         data_file_path = os.path.join(data_path, data_file_name)
         data_df = pd.read_csv(data_file_path, index_col=0, parse_dates=True)
 
-    print(data_df)
-    data_df['openinterest'] = 0
-    data = bt.feeds.PandasData(dataname=data_df,
-                               fromdate=datetime.datetime(2017, 10, 1),
-                               todate=datetime.datetime(2019, 10, 31)
-                               )
+    if data_method == 1:
+        print(data_df)
+        data_df['openinterest'] = 0
+        data = bt.feeds.PandasData(dataname=data_df,
+                                   fromdate=datetime.datetime(2017, 10, 1),
+                                   todate=datetime.datetime(2019, 10, 31)
+                                   )
+    elif data_method == 0:
+        data = bt.feeds.YahooFinanceData(
+            dataname=yahoo_stock_code,
+            fromdate=datetime.datetime(2018, 1, 10),
+            todate=datetime.datetime(2019, 10, 31),
+            buffered=True
+        )
 
     # Add the Data Feed to Cerebro
     cerebro.adddata(data)
+
+    # Add a strategy
+    # cerebro.addstrategy(SmaCross)
+    cerebro.addstrategy(CdmaCross)
 
     # Set our desired cash start
     cerebro.broker.setcash(100000.0)
