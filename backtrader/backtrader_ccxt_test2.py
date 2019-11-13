@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from datetime import datetime, timedelta
 
 import backtrader as bt
-import ccxtbt as cbt
+# import ccxtbt as cbt
 
 
 class TestStrategy(bt.Strategy):
@@ -37,6 +37,7 @@ class TestStrategy(bt.Strategy):
         self.macd2 = bt.indicators.MACDHisto(self.datas[1])
 
     def next(self):
+        self.log('-----------------next------------------')
         self.counter += 1
         price_txt = "Counter: " + str(self.counter) + " Open/Close/High/Low/Volume: " + str(
             self.data0.open[0]) + " - " + str(self.data0.close[0]) + " - " + str(self.data0.high[0]) + " - " + str(
@@ -53,8 +54,8 @@ if __name__ == '__main__':
     cerebro = bt.Cerebro()
 
     # exchange = sys.argv[1] if len(sys.argv) > 1 else 'gdax'
-    exchange = sys.argv[1] if len(sys.argv) > 1 else 'okex'
-    symbol = sys.argv[2] if len(sys.argv) > 2 else 'ETH/USDT'
+    exchange = sys.argv[1] if len(sys.argv) > 1 else 'bitfinex'
+    symbol = sys.argv[2] if len(sys.argv) > 2 else 'ETH/USD'
 
     hist_start_date = datetime.utcnow() - timedelta(minutes=10)
     print('UTC NOW: ', datetime.utcnow())
